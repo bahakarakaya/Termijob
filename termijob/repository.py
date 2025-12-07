@@ -95,3 +95,11 @@ class JobRepository:
             return session.query(Job).count()
         finally:
             session.close()
+    
+    def get_recent_jobs(self, limit: int = 5) -> list[Job]:
+        """Get the most recent jobs."""
+        session = get_session()
+        try:
+            return session.query(Job).order_by(Job.created_at.desc()).limit(limit).all()
+        finally:
+            session.close()

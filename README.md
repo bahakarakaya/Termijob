@@ -22,14 +22,14 @@ A TUI (Terminal User Interface) application for managing and categorizing Upwork
 ├─────────────────────────────────────────────────────────────────┤
 │  Total jobs stored: 5                                           │
 │                                                                 │
-│  [Add Job]  [List All]  [Search]                               │
+│  [Add Job]  [List All]  [Search]                                │
 │                                                                 │
 │  Categories:                                                    │
-│  ┌───────────────────────────────────────────────────────────┐ │
-│  │ • Web Scraping (2)                                        │ │
-│  │ • Machine Learning (2)                                    │ │
-│  │ • Data Engineering (1)                                    │ │
-│  └───────────────────────────────────────────────────────────┘ │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ • Web Scraping (2)                                        │  │
+│  │ • Machine Learning (2)                                    │  │
+│  │ • Data Engineering (1)                                    │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

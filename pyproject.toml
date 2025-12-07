@@ -1,0 +1,15 @@
+[project]
+name = "termijob"
+version = "0.1.0"
+description = "TUI application for categorizing Upwork job postings using local LLM"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.45.0",
+    "ollama>=0.4.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+termijob = "termijob.app:main"

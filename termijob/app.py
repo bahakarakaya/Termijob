@@ -20,18 +20,19 @@ class JobDetailModal(ModalScreen):
     """Modal to display job details."""
     
     BINDINGS = [
-        Binding("escape", "dismiss", "Close", show=True),
+        Binding("escape", "dismiss", "Close/Cancel", show=True),
         Binding("d", "delete_job", "Delete", show=True),
+        Binding("n", "edit_notes", "Notes", show=True),
+        Binding("ctrl+s", "save_notes", "Save", show=True),
         Binding("g", "scroll_top", "Top", show=True),
         Binding("G", "scroll_bottom", "Bottom", show=True),
     ]
     
-    # Custom footer hint for arrow keys
-    FOOTER_HINT = "↑↓ Scroll"
-    
     def __init__(self, job, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job = job
+        self.editing_notes = False
+        self.repo = JobRepository()
     
     def compose(self) -> ComposeResult:
         with Container(id="job-detail-modal"):
@@ -45,6 +46,9 @@ class JobDetailModal(ModalScreen):
                     yield Static(f"[magenta]⭐ {self.job.experience_level or 'N/A'}[/magenta]", classes="meta-item")
                     yield Static(f"[blue]📍 {self.job.client_location or 'N/A'}[/blue]", classes="meta-item")
                 yield Static("─" * 60, classes="separator")
+                yield Static("[bold]📝 Notes:[/bold]")
+                yield Static(self.job.notes or "[dim]No notes yet. Press 'n' to add notes.[/dim]", id="notes-display")
+                yield Static("─" * 60, classes="separator")
                 yield Static("[bold]Skills Required:[/bold]")
                 yield Static(f"  {self.job.skills or 'None specified'}", id="skills-display")
                 yield Static("─" * 60, classes="separator")
@@ -53,13 +57,21 @@ class JobDetailModal(ModalScreen):
                 yield Static("─" * 60, classes="separator")
                 yield Static("[bold]Original Posting:[/bold]", id="raw-label")
                 yield Static(self.job.raw_text, id="raw-text-display")
+            with Container(id="notes-edit-container"):
+                yield TextArea(id="notes-textarea")
+                with Horizontal(id="notes-buttons"):
+                    yield Button("Save Notes", id="save-notes-btn", variant="success")
+                    yield Button("Cancel", id="cancel-notes-btn", variant="default")
             with Horizontal(id="modal-buttons"):
                 yield Button("Close", id="close-btn", variant="primary")
+                yield Button("Notes", id="notes-btn", variant="warning")
                 yield Button("Delete", id="delete-btn", variant="error")
             yield Static("[dim]↑↓ Scroll[/dim]", id="scroll-hint")
         yield Footer()
     
     def on_mount(self) -> None:
+        # Hide notes editor initially
+        self.query_one("#notes-edit-container").display = False
         # Focus the scroll container for keyboard navigation
         self.query_one("#modal-scroll-container", VerticalScroll).focus()
     
@@ -69,17 +81,66 @@ class JobDetailModal(ModalScreen):
     def action_scroll_bottom(self) -> None:
         self.query_one("#modal-scroll-container", VerticalScroll).scroll_end()
     
+    def _show_notes_editor(self) -> None:
+        """Show the notes editor."""
+        self.editing_notes = True
+        textarea = self.query_one("#notes-textarea", TextArea)
+        textarea.text = self.job.notes or ""
+        self.query_one("#notes-edit-container").display = True
+        self.query_one("#modal-scroll-container").display = False
+        self.query_one("#modal-buttons").display = False
+        self.query_one("#scroll-hint").display = False
+        textarea.focus()
+    
+    def _hide_notes_editor(self) -> None:
+        """Hide the notes editor."""
+        self.editing_notes = False
+        self.query_one("#notes-edit-container").display = False
+        self.query_one("#modal-scroll-container").display = True
+        self.query_one("#modal-buttons").display = True
+        self.query_one("#scroll-hint").display = True
+        self.query_one("#modal-scroll-container", VerticalScroll).focus()
+    
+    def _save_notes(self) -> None:
+        """Save the notes."""
+        textarea = self.query_one("#notes-textarea", TextArea)
+        notes = textarea.text.strip()
+        self.repo.update_job_notes(self.job.id, notes)
+        self.job.notes = notes
+        # Update display
+        notes_display = self.query_one("#notes-display", Static)
+        notes_display.update(notes if notes else "[dim]No notes yet. Press 'n' to add notes.[/dim]")
+        self._hide_notes_editor()
+    
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-btn":
             self.dismiss(False)
         elif event.button.id == "delete-btn":
             self.dismiss(True)  # Signal to delete
+        elif event.button.id == "notes-btn":
+            self._show_notes_editor()
+        elif event.button.id == "save-notes-btn":
+            self._save_notes()
+        elif event.button.id == "cancel-notes-btn":
+            self._hide_notes_editor()
     
     def action_dismiss(self) -> None:
-        self.dismiss(False)
+        if self.editing_notes:
+            self._hide_notes_editor()
+        else:
+            self.dismiss(False)
     
     def action_delete_job(self) -> None:
-        self.dismiss(True)
+        if not self.editing_notes:
+            self.dismiss(True)
+    
+    def action_save_notes(self) -> None:
+        if self.editing_notes:
+            self._save_notes()
+    
+    def action_edit_notes(self) -> None:
+        if not self.editing_notes:
+            self._show_notes_editor()
 
 
 class AddJobScreen(Screen):
@@ -573,6 +634,48 @@ class TermiJobApp(App):
         background: $surface;
     }
     
+    /* Global Button Styles */
+    Button {
+        background: $primary;
+        color: $text;
+        border: tall $primary-lighten-2;
+        min-width: 16;
+    }
+    
+    Button:hover {
+        background: $primary-lighten-1;
+    }
+    
+    Button:focus {
+        background: $primary-lighten-2;
+        text-style: bold;
+    }
+    
+    Button.-primary {
+        background: $primary;
+        color: $text;
+    }
+    
+    Button.-success {
+        background: $success;
+        color: $text;
+    }
+    
+    Button.-error {
+        background: $error;
+        color: $text;
+    }
+    
+    Button.-warning {
+        background: $warning;
+        color: $text;
+    }
+    
+    Button.-default {
+        background: $surface-lighten-2;
+        color: $text;
+    }
+    
     /* Dashboard Layout */
     #dashboard-layout {
         height: 100%;
@@ -853,6 +956,32 @@ class TermiJobApp(App):
     #scroll-hint {
         text-align: center;
         margin-top: 1;
+    }
+    
+    #notes-display {
+        padding: 0 1;
+        margin-bottom: 1;
+    }
+    
+    #notes-edit-container {
+        height: 1fr;
+        padding: 1;
+        border: round $warning;
+    }
+    
+    #notes-textarea {
+        height: 1fr;
+        border: round $warning;
+    }
+    
+    #notes-buttons {
+        align: center middle;
+        height: auto;
+        margin-top: 1;
+    }
+    
+    #notes-buttons Button {
+        margin: 0 1;
     }
     
     /* Category Select Screen */

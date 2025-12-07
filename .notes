@@ -1,0 +1,9 @@
+# Developer Notes
+
+## UI Design Notes
+
+- **Button Colors**: White text on black background is not a good combination for buttons. Use proper color schemes with:
+  - Primary buttons: Use theme's $primary color with $text
+  - Success buttons: Use $success with $text
+  - Error buttons: Use $error with $text
+  - Default buttons: Use $surface-lighten-2 with $text for better contrast

@@ -23,6 +23,7 @@ class Job(Base):
     experience_level = Column(String(50), nullable=True)
     job_type = Column(String(50), nullable=True)  # Fixed/Hourly
     raw_text = Column(Text, nullable=False)  # Original pasted text
+    notes = Column(Text, nullable=True)  # User notes
     created_at = Column(DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -57,6 +58,22 @@ def get_session():
 
 
 def init_db():
-    """Initialize the database."""
+    """Initialize the database and run migrations."""
     engine = get_engine()
     Base.metadata.create_all(engine)
+    
+    # Run migrations for existing databases
+    _migrate_add_notes_column(engine)
+
+
+def _migrate_add_notes_column(engine):
+    """Add notes column if it doesn't exist (migration)."""
+    from sqlalchemy import text, inspect
+    
+    inspector = inspect(engine)
+    columns = [col['name'] for col in inspector.get_columns('jobs')]
+    
+    if 'notes' not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN notes TEXT"))
+            conn.commit()

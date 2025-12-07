@@ -103,3 +103,16 @@ class JobRepository:
             return session.query(Job).order_by(Job.created_at.desc()).limit(limit).all()
         finally:
             session.close()
+    
+    def update_job_notes(self, job_id: int, notes: str) -> bool:
+        """Update notes for a job."""
+        session = get_session()
+        try:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                job.notes = notes
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()

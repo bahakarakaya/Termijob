@@ -22,6 +22,8 @@ class JobDetailModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss", "Close/Cancel", show=True),
         Binding("d", "delete_job", "Delete", show=True),
+        Binding("a", "toggle_applied", "Applied", show=True),
+        Binding("x", "toggle_done", "Done", show=True),
         Binding("n", "edit_notes", "Notes", show=True),
         Binding("ctrl+s", "save_notes", "Save", show=True),
         Binding("g", "scroll_top", "Top", show=True),
@@ -35,6 +37,8 @@ class JobDetailModal(ModalScreen):
         self.repo = JobRepository()
     
     def compose(self) -> ComposeResult:
+        applied_icon = "👍" if self.job.applied else "⬜"
+        done_icon = "✅" if self.job.done else "⬜"
         with Container(id="job-detail-modal"):
             yield Static(f"[bold]{self.job.title}[/bold]", id="job-title")
             with VerticalScroll(id="modal-scroll-container"):
@@ -45,6 +49,9 @@ class JobDetailModal(ModalScreen):
                 with Horizontal(id="job-meta-row2"):
                     yield Static(f"[magenta]⭐ {self.job.experience_level or 'N/A'}[/magenta]", classes="meta-item")
                     yield Static(f"[blue]📍 {self.job.client_location or 'N/A'}[/blue]", classes="meta-item")
+                with Horizontal(id="job-flags-row"):
+                    yield Static(f"{applied_icon} Applied", id="applied-status", classes="flag-item")
+                    yield Static(f"{done_icon} Done", id="done-status", classes="flag-item")
                 yield Static("─" * 60, classes="separator")
                 yield Static("[bold]📝 Notes:[/bold]")
                 yield Static(self.job.notes or "[dim]No notes yet. Press 'n' to add notes.[/dim]", id="notes-display")
@@ -64,6 +71,8 @@ class JobDetailModal(ModalScreen):
                     yield Button("Cancel", id="cancel-notes-btn", variant="default")
             with Horizontal(id="modal-buttons"):
                 yield Button("Close", id="close-btn", variant="primary")
+                yield Button(f"{applied_icon} Applied", id="applied-btn", variant="success" if self.job.applied else "default")
+                yield Button(f"{done_icon} Done", id="done-btn", variant="success" if self.job.done else "default")
                 yield Button("Notes", id="notes-btn", variant="warning")
                 yield Button("Delete", id="delete-btn", variant="error")
             yield Static("[dim]↑↓ Scroll[/dim]", id="scroll-hint")
@@ -123,6 +132,53 @@ class JobDetailModal(ModalScreen):
             self._save_notes()
         elif event.button.id == "cancel-notes-btn":
             self._hide_notes_editor()
+        elif event.button.id == "applied-btn":
+            self._toggle_applied()
+        elif event.button.id == "done-btn":
+            self._toggle_done()
+    
+    def _toggle_applied(self) -> None:
+        """Toggle the applied flag."""
+        new_state = self.repo.toggle_job_applied(self.job.id)
+        if new_state is not None:
+            self.job.applied = new_state
+            self._update_flag_display()
+    
+    def _toggle_done(self) -> None:
+        """Toggle the done flag."""
+        new_state = self.repo.toggle_job_done(self.job.id)
+        if new_state is not None:
+            self.job.done = new_state
+            self._update_flag_display()
+    
+    def _update_flag_display(self) -> None:
+        """Update the flag status displays and buttons."""
+        applied_icon = "👍" if self.job.applied else "⬜"
+        done_icon = "✅" if self.job.done else "⬜"
+        
+        # Update status display
+        self.query_one("#applied-status", Static).update(f"{applied_icon} Applied")
+        self.query_one("#done-status", Static).update(f"{done_icon} Done")
+        
+        # Update buttons
+        applied_btn = self.query_one("#applied-btn", Button)
+        applied_btn.label = f"{applied_icon} Applied"
+        applied_btn.variant = "success" if self.job.applied else "default"
+        
+        done_btn = self.query_one("#done-btn", Button)
+        done_btn.label = f"{done_icon} Done"
+        done_btn.variant = "success" if self.job.done else "default"
+        
+        # Force refresh to update display
+        self.refresh()
+    
+    def action_toggle_applied(self) -> None:
+        if not self.editing_notes:
+            self._toggle_applied()
+    
+    def action_toggle_done(self) -> None:
+        if not self.editing_notes:
+            self._toggle_done()
     
     def action_dismiss(self) -> None:
         if self.editing_notes:
@@ -244,7 +300,7 @@ class JobListScreen(Screen):
         table = self.query_one("#jobs-table", DataTable)
         table.clear(columns=True)
         
-        table.add_columns("ID", "Title", "Category", "Budget", "Type", "Date")
+        table.add_columns("ID", "Status", "Title", "Category", "Budget", "Type")
         
         if self.category:
             jobs = self.repo.get_jobs_by_category(self.category)
@@ -252,13 +308,16 @@ class JobListScreen(Screen):
             jobs = self.repo.get_all_jobs()
         
         for job in jobs:
+            applied_icon = "👍" if job.applied else ""
+            done_icon = "✅" if job.done else ""
+            flags = f"{applied_icon}{done_icon}" or "-"
             table.add_row(
                 str(job.id),
-                job.title[:40] + "..." if len(job.title) > 40 else job.title,
-                job.category,
-                job.budget or "-",
-                job.job_type or "-",
-                job.created_at.strftime("%Y-%m-%d") if job.created_at else "-",
+                flags,
+                (job.title[:35] + "...") if len(job.title) > 35 else job.title,
+                (job.category[:12] + "...") if len(job.category) > 12 else job.category,
+                (job.budget[:10] + "...") if job.budget and len(job.budget) > 10 else (job.budget or "-"),
+                (job.job_type[:8] + "...") if job.job_type and len(job.job_type) > 8 else (job.job_type or "-"),
                 key=str(job.id),
             )
     
@@ -284,8 +343,9 @@ class JobListScreen(Screen):
                 if row_key:
                     job_id = int(row_key[0])
                     self.repo.delete_job(job_id)
-                    self.load_jobs()
                     self.app.notify("Job deleted")
+        # Always refresh to show updated flags
+        self.load_jobs()
     
     def action_go_back(self) -> None:
         self.app.pop_screen()
@@ -328,7 +388,7 @@ class SearchScreen(Screen):
     
     def on_mount(self) -> None:
         table = self.query_one("#search-results", DataTable)
-        table.add_columns("ID", "Title", "Category", "Budget", "Skills")
+        table.add_columns("ID", "Status", "Title", "Category", "Budget")
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "search-btn":
@@ -350,12 +410,15 @@ class SearchScreen(Screen):
         jobs = self.repo.search_jobs(query)
         
         for job in jobs:
+            applied_icon = "👍" if job.applied else ""
+            done_icon = "✅" if job.done else ""
+            flags = f"{applied_icon}{done_icon}" or "-"
             table.add_row(
                 str(job.id),
-                job.title[:35] + "..." if len(job.title) > 35 else job.title,
-                job.category,
-                job.budget or "-",
-                (job.skills[:30] + "...") if job.skills and len(job.skills) > 30 else (job.skills or "-"),
+                flags,
+                (job.title[:35] + "...") if len(job.title) > 35 else job.title,
+                (job.category[:12] + "...") if len(job.category) > 12 else job.category,
+                (job.budget[:10] + "...") if job.budget and len(job.budget) > 10 else (job.budget or "-"),
                 key=str(job.id),
             )
         
@@ -383,8 +446,9 @@ class SearchScreen(Screen):
                 if row_key:
                     job_id = int(row_key[0])
                     self.repo.delete_job(job_id)
-                    self.perform_search()
                     self.app.notify("Job deleted")
+        # Always refresh to show updated flags
+        self.perform_search()
     
     def action_go_back(self) -> None:
         self.app.pop_screen()
@@ -455,7 +519,7 @@ class MainScreen(Screen):
     def on_mount(self) -> None:
         # Setup recent jobs table columns first
         table = self.query_one("#recent-jobs-table", DataTable)
-        table.add_columns("ID", "Title", "Category", "Date")
+        table.add_columns("ID", "Status", "Title", "Category")
         # Then refresh data
         self.refresh_dashboard()
     
@@ -508,16 +572,19 @@ class MainScreen(Screen):
         
         if recent_jobs:
             for job in recent_jobs:
+                applied_icon = "👍" if job.applied else ""
+                done_icon = "✅" if job.done else ""
+                flags = f"{applied_icon}{done_icon}" or "-"
                 table.add_row(
                     str(job.id),
+                    flags,
                     job.title[:30] + "..." if len(job.title) > 30 else job.title,
                     job.category[:15] if job.category else "-",
-                    job.created_at.strftime("%m/%d") if job.created_at else "-",
                     key=str(job.id),
                 )
         else:
             # Add placeholder row
-            table.add_row("-", "No recent activity", "-", "-")
+            table.add_row("-", "-", "No recent activity", "-")
     
     def _update_menu_selection(self) -> None:
         """Update visual selection in navigation menu."""
@@ -575,8 +642,9 @@ class MainScreen(Screen):
                 if row_key and row_key[0] != "-":
                     job_id = int(row_key[0])
                     self.repo.delete_job(job_id)
-                    self.refresh_dashboard()
                     self.app.notify("Job deleted")
+        # Always refresh to show updated flags
+        self.refresh_dashboard()
     
     def action_add_job(self) -> None:
         self.app.push_screen(AddJobScreen())
@@ -899,8 +967,8 @@ class TermiJobApp(App):
     
     /* Job Detail Modal */
     #job-detail-modal {
-        width: 90%;
-        height: 90%;
+        width: 100%;
+        height: 100%;
         background: $surface;
         border: round $primary;
         padding: 1 2;
@@ -918,8 +986,20 @@ class TermiJobApp(App):
         margin: 0 0 1 0;
     }
     
+    #job-flags-row {
+        height: auto;
+        margin: 0 0 1 0;
+    }
+    
     .meta-item {
         margin-right: 3;
+    }
+    
+    .flag-item {
+        margin-right: 3;
+        padding: 0 1;
+        background: $surface-darken-1;
+        border: round $accent;
     }
     
     .separator {

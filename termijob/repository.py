@@ -116,3 +116,55 @@ class JobRepository:
             return False
         finally:
             session.close()
+    
+    def toggle_job_applied(self, job_id: int) -> bool | None:
+        """Toggle the applied flag for a job. Returns new state or None if not found."""
+        session = get_session()
+        try:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                job.applied = not job.applied
+                session.commit()
+                return job.applied
+            return None
+        finally:
+            session.close()
+    
+    def toggle_job_done(self, job_id: int) -> bool | None:
+        """Toggle the done flag for a job. Returns new state or None if not found."""
+        session = get_session()
+        try:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                job.done = not job.done
+                session.commit()
+                return job.done
+            return None
+        finally:
+            session.close()
+    
+    def set_job_applied(self, job_id: int, applied: bool) -> bool:
+        """Set the applied flag for a job."""
+        session = get_session()
+        try:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                job.applied = applied
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+    
+    def set_job_done(self, job_id: int, done: bool) -> bool:
+        """Set the done flag for a job."""
+        session = get_session()
+        try:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                job.done = done
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()

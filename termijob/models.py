@@ -1,7 +1,7 @@
 """Database models for Termijob."""
 
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from pathlib import Path
 
@@ -24,6 +24,8 @@ class Job(Base):
     job_type = Column(String(50), nullable=True)  # Fixed/Hourly
     raw_text = Column(Text, nullable=False)  # Original pasted text
     notes = Column(Text, nullable=True)  # User notes
+    applied = Column(Boolean, default=False, nullable=False)  # Applied flag
+    done = Column(Boolean, default=False, nullable=False)  # Done/completed flag
     created_at = Column(DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -63,17 +65,24 @@ def init_db():
     Base.metadata.create_all(engine)
     
     # Run migrations for existing databases
-    _migrate_add_notes_column(engine)
+    _run_migrations(engine)
 
 
-def _migrate_add_notes_column(engine):
-    """Add notes column if it doesn't exist (migration)."""
+def _run_migrations(engine):
+    """Run all database migrations."""
     from sqlalchemy import text, inspect
     
     inspector = inspect(engine)
     columns = [col['name'] for col in inspector.get_columns('jobs')]
     
-    if 'notes' not in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE jobs ADD COLUMN notes TEXT"))
-            conn.commit()
+    migrations = [
+        ('notes', 'ALTER TABLE jobs ADD COLUMN notes TEXT'),
+        ('applied', 'ALTER TABLE jobs ADD COLUMN applied BOOLEAN DEFAULT 0 NOT NULL'),
+        ('done', 'ALTER TABLE jobs ADD COLUMN done BOOLEAN DEFAULT 0 NOT NULL'),
+    ]
+    
+    with engine.connect() as conn:
+        for column_name, sql in migrations:
+            if column_name not in columns:
+                conn.execute(text(sql))
+        conn.commit()

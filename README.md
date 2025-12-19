@@ -12,6 +12,8 @@ A TUI (Terminal User Interface) application for managing and categorizing Upwork
 - 🏷️ **Smart Categorization**: Jobs are classified into categories like Web Scraping, Machine Learning, Computer Vision, etc.
 - 📂 **List Jobs**: View all jobs or filter by category
 - 🔍 **Search**: Search jobs by title, description, or skills
+- ✅ **Job Tracking**: Mark jobs as Applied or Done to track your application progress
+- 📝 **Notes**: Add personal notes to any job posting
 - 🗑️ **Delete Jobs**: Remove jobs you're no longer interested in
 - 🔒 **Local LLM**: Uses Ollama with Llama 3.1 8B for privacy-focused local processing
 
@@ -111,6 +113,7 @@ termijob
 | | `q` | Quit |
 | **Job List** | `↑/↓` | Navigate |
 | | `Enter` | View job details |
+| | `c` | Filter by category |
 | | `d` | Delete selected job |
 | | `r` | Refresh |
 | | `Esc` | Go back |
@@ -119,6 +122,10 @@ termijob
 | **Job Detail** | `↑/↓` | Scroll content |
 | | `g` | Scroll to top |
 | | `G` | Scroll to bottom |
+| | `a` | Toggle Applied status |
+| | `x` | Toggle Done status |
+| | `n` | Edit notes |
+| | `Ctrl+S` | Save notes |
 | | `d` | Delete job |
 | | `Esc` | Close |
 
@@ -137,6 +144,9 @@ Jobs are automatically categorized into:
 | API Development | REST, GraphQL APIs |
 | Automation | Scripts, bots, workflows |
 | Natural Language Processing | NLP, text analysis |
+| Large Language Models | LLM integration, prompt engineering |
+| Cloud Computing | AWS, Azure, GCP services |
+| Agent Development | AI agents, autonomous systems |
 | Data Engineering | ETL, pipelines |
 | DevOps | CI/CD, infrastructure |
 | Database | SQL, NoSQL, design |
@@ -167,6 +177,40 @@ Jobs are stored in a SQLite database at:
 - **LLM**: [Ollama](https://ollama.ai/) with Llama 3.1
 - **Database**: SQLite with SQLAlchemy
 - **Validation**: Pydantic
+
+## Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. **Fork the repository** (or create a branch if you have write access)
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Commit your changes**: `git commit -m 'Add some amazing feature'`
+4. **Push to the branch**: `git push origin feature/amazing-feature`
+5. **Open a Pull Request**
+
+### Development Setup
+
+```bash
+# Clone the repository (or your fork)
+git clone https://github.com/yourusername/termijob.git
+cd termijob
+
+# Install dependencies
+uv sync
+
+# Run tests (if available)
+uv run pytest
+
+# Run the app in development mode
+uv run python -m termijob.app
+```
+
+### Guidelines
+
+- Follow PEP 8 style guidelines
+- Add tests for new features
+- Update documentation as needed
+- Keep commits atomic and well-described
 
 ## License
 
